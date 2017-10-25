@@ -67,7 +67,6 @@ def soccom_df(data_directory):
     df_holder = df_holder.reset_index(drop=True)
     return df_holder
 
-df_soccom = soccom_df(soccom_proj_settings.soccom_data_directory)
 
     #Still need to add functionality to select which data columns you want to read in
     #Still need to link to linear interpolator to interpolate using basemap

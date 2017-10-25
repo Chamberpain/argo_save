@@ -21,7 +21,7 @@ debug = True
 # df = df.drop('Pressure',1)
 # df = pd.concat([soccomargo_df()])
 
-df = argo_df(soccom_proj_settings.argo_data_directory)
+df = argo_df('/Users/paulchamberlain/Data/ARGO/')
 
 ###  we remove these dates because they seem to be outlyers that are not physical
 df = df[(df.Date!=datetime.date(2008,6,18))|(df.Cruise!=5901730)]
