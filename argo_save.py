@@ -1,27 +1,13 @@
 import sys,os
-sys.path.append(os.path.abspath("/Users/paulchamberlain/Data/"))
-sys.path.append(os.path.abspath("/Users/paulchamberlain/SOCCOM/utilities"))
+sys.path.append(os.path.abspath("../"))
 
-from scipy.io import netcdf_file as netcdf
 import soccom_proj_settings
 import pandas as pd
-import glob
-import jdcal
-import gsw
-import matplotlib.pyplot as plt
-import itertools as it
+import datetime
 from soccom_read import soccom_df
 from argo_read import argo_df
 
-debug = True
-
-# CT = list(gsw.CT_from_t(df.Salinity.values,df.Temperature.values,df.Pressure.values))
-# density = list(gsw.sigma0(df.Salinity.values,CT))
-# df['Density'] = pd.Series(density, index=df.index)
-# df = df.drop('Pressure',1)
-# df = pd.concat([soccomargo_df()])
-
-df = argo_df('/Users/paulchamberlain/Data/ARGO/')
+df = argo_df(soccom_proj_settings.argo_data_directory)
 
 ###  we remove these dates because they seem to be outlyers that are not physical
 df = df[(df.Date!=datetime.date(2008,6,18))|(df.Cruise!=5901730)]
@@ -31,7 +17,7 @@ df = df[(df.Date!=datetime.date(2011,5,22))|(df.Cruise!=5901740)]
 
 df[['Cruise','PosQC']] = df[['Cruise','PosQC']].astype(int)
 df.loc[df.Lon.values<0,['Lon']] = df[df.Lon<0].Lon.values+360
-df = df[['Cruise','Date','Temperature','Salinity','Pressure','Lat','Lon','PosQC','PosSys']]
+df = df[['Cruise','Date','Temperature','Salinity','Pressure','Lat','Lon','PosQC']]
 df = df[(df.PosQC==1)|(df.PosQC==8)]
 df.to_pickle(soccom_proj_settings.argo_drifter_file)
 
