@@ -11,7 +11,11 @@ def soccom_file_reader(file_token):
     for date_header in range(nc_token.dimensions['N_PROF'].size):
         date = ''.join(nc_token['mon_day_yr'][date_header].tolist())
         Lon = nc_token['Lon'][date_header]
+        if np.abs(Lon)>360:
+            print 'Longitude is showing some funny values for float ',cruise
         Lat = nc_token['Lat'][date_header]
+        if np.abs(Lat)>90:
+            print 'Latitude is showing some funny values for float ',cruise
         PosQC = nc_token['Lat_QF'][date_header]
         dataframe_token = pd.DataFrame()
         for variable in col: 
@@ -34,10 +38,10 @@ def soccom_df(data_directory):
     df_holder = pd.concat(frames)
     df_holder = df_holder.dropna(subset=['Pressure'])
     df_holder = df_holder.dropna(subset = ['Date'])     #drop bad dates (nothing can be done with this data)
-    df_holder.loc[df_holder.PosQC==1,'Lon']=np.nan
-    df_holder.loc[df_holder.PosQC==1,'Lat']=np.nan
-    df_holder.loc[df_holder.PosQC==4,'PosQC']=8
-    df_holder.loc[df_holder.PosQC==0,'PosQC']=1
+    df_holder.loc[df_holder.PosQC=='1','Lon']=np.nan
+    df_holder.loc[df_holder.PosQC=='1','Lat']=np.nan
+    df_holder.loc[df_holder.PosQC=='4','PosQC']=8
+    df_holder.loc[df_holder.PosQC=='0','PosQC']=1
     df_holder.loc[df_holder.Pressure_QF!='0','Pressure']=np.nan
     df_holder.loc[df_holder.Temperature_QF!='0','Temperature']=np.nan
     df_holder.loc[df_holder.Salinity_QF!='0','Salinity']=np.nan
