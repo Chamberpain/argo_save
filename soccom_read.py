@@ -36,8 +36,7 @@ def soccom_df(data_directory):
         print float_name
         frames.append(soccom_file_reader(float_name))           #pandas is orders of magnitude faster at appending then concatenating
     df_holder = pd.concat(frames)
-    df_holder = df_holder.dropna(subset=['Pressure'])
-    df_holder = df_holder.dropna(subset = ['Date'])     #drop bad dates (nothing can be done with this data)
+    df_holder = df_holder.dropna(subset=['Pressure','Date','Lat','Lon'])
     df_holder.loc[df_holder.PosQC=='1','Lon']=np.nan
     df_holder.loc[df_holder.PosQC=='1','Lat']=np.nan
     df_holder.loc[df_holder.PosQC=='4','PosQC']=8
@@ -50,6 +49,7 @@ def soccom_df(data_directory):
     df_holder.loc[df_holder.Nitrate_QF!='0','Nitrate']=np.nan
     df_holder.loc[df_holder.pH25C_QF!='0','pH25C']=np.nan
     df_holder['Type']='SOCCOM'
+    df_holder = df_holder.dropna(subset=['Pressure','Date','Lat','Lon'])
     df_holder = df_holder.drop_duplicates(subset=['Cruise','Date','Pressure'])
     df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
     df_holder = df_holder.reset_index(drop=True)

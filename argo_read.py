@@ -1,6 +1,4 @@
 import sys,os
-sys.path.append(os.path.abspath("/Users/paulchamberlain/SOCCOM/utilities"))
-sys.path.append(os.path.abspath("/Users/paulchamberlain/Data/"))
 import pandas as pd
 import jdcal
 import fnmatch
