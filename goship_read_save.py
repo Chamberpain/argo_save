@@ -54,7 +54,7 @@ for n, match in enumerate(matches):
 
 df_holder = pd.concat(frames) #merge all dataframes together
 df_holder['Type']='GOSHIP'
-df_holder = df_holder[['Cruise','Date','Temperature','Salinity','Oxygen','Nitrate','Alkalinity','Pressure''Lat','Lon']]
+df_holder = df_holder[['Cruise','Date','Temperature','Salinity','Oxygen','Nitrate','Alkalinity','Pressure','Lat','Lon']]
 df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
 df_holder.to_pickle(soccom_proj_settings.goship_file)
 
