@@ -35,8 +35,12 @@ def goship_file_reader(file_):
 		df_token['Date'] = pd.to_datetime(datetime.strptime(nc_fid.Created,'%Y%m%d %I:%S').date()) # not all the net cdf files are in the same format, this normalizes them
 	try:
 		df_token['Cruise']=nc_fid.WOCE_ID
+		if nc_fid.WOCE_ID in ['','999','UNK','UNKNOWN','x','TEST']: #not all cruise metadata is as complete as we would like
+			df_token['Cruise']='Unknown WOCE'
 	except AttributeError:
 		df_token['Cruise']=nc_fid.WHP_SECTION_ID # not all net cdf files have the same naming convention, this references the correct one
+		if nc_fid.WHP_SECTION_ID in ['','999','UNK','UNKNOWN','x','TEST']: #not all cruise metadata is as complete as we would like
+			df_token['Cruise']='Unknown WOCE'
 	df_token = df_token.dropna(subset = ['Date','Pressure']) #without date or pressure, these measurements are useless...
 	nc_fid.close()
 	return df_token
@@ -56,5 +60,5 @@ df_holder = pd.concat(frames) #merge all dataframes together
 df_holder['Type']='GOSHIP'
 df_holder = df_holder[['Cruise','Date','Temperature','Salinity','Oxygen','Nitrate','Alkalinity','Pressure','Lat','Lon']]
 df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
+df_holder = df_holder.reset_index(drop=True)
 df_holder.to_pickle(soccom_proj_settings.goship_file)
-
