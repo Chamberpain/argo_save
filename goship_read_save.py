@@ -58,7 +58,7 @@ for n, match in enumerate(matches):
 
 df_holder = pd.concat(frames) #merge all dataframes together
 df_holder = df_holder[df_holder.Lat<-40]
-df_holder = df_holder[df_holder.Lat>-90]
+df_holder = df_holder[df_holder.Lat>-90] # some null lat values are saved as -999. This eliminates them.
 df_holder['Type']='GOSHIP'
 df_holder = df_holder[['Cruise','Date','Temperature','Salinity','Oxygen','Nitrate','Alkalinity','Pressure','Lat','Lon']]
 df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
