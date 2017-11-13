@@ -2,10 +2,13 @@ import pandas as pd
 import glob
 import numpy as np
 from netCDF4 import Dataset 
+import sys,os
+sys.path.append(os.path.abspath("../"))
+import soccom_proj_settings
+variable_list = ['Pressure','Temperature','Salinity','Oxygen','OxygenSat','Nitrate','pH25C','TALK_MLR','pHinsitu','DIC_MLR']   #initialize the column names
 
 def soccom_file_reader(file_token):
     frame_token = []
-    col = [u'Pressure','Pressure_QF',u'Temperature','Temperature_QF',u'Salinity','Salinity_QF', u'Oxygen','Oxygen_QF','OxygenSat','OxygenSat_QF', u'Nitrate','Nitrate_QF','pH25C','pH25C_QF']   #initialize the column names
     nc_token = Dataset(file_token)
     cruise = ''.join(nc_token['Cruise'][:].tolist()).strip()
     for date_header in range(nc_token.dimensions['N_PROF'].size):
@@ -18,8 +21,9 @@ def soccom_file_reader(file_token):
             print 'Latitude is showing some funny values for float ',cruise
         PosQC = nc_token['Lat_QF'][date_header]
         dataframe_token = pd.DataFrame()
-        for variable in col: 
+        for variable in variable_list: 
             dataframe_token[variable]=nc_token[variable][date_header]
+            dataframe_token[variable+'_QF']=nc_token[variable+'_QF'][date_header]
         dataframe_token['Cruise']=cruise
         dataframe_token['Date']=pd.to_datetime(date)
         dataframe_token['Lat']=Lat
@@ -41,22 +45,17 @@ def soccom_df(data_directory):
     df_holder.loc[df_holder.PosQC=='1','Lat']=np.nan
     df_holder.loc[df_holder.PosQC=='4','PosQC']=8
     df_holder.loc[df_holder.PosQC=='0','PosQC']=1
-    df_holder.loc[df_holder.Pressure_QF!='0','Pressure']=np.nan
-    df_holder.loc[df_holder.Temperature_QF!='0','Temperature']=np.nan
-    df_holder.loc[df_holder.Salinity_QF!='0','Salinity']=np.nan
-    df_holder.loc[df_holder.Oxygen_QF!='0','Oxygen']=np.nan
-    df_holder.loc[df_holder.OxygenSat_QF!='0','OxygenSat']=np.nan
-    df_holder.loc[df_holder.Nitrate_QF!='0','Nitrate']=np.nan
-    df_holder.loc[df_holder.pH25C_QF!='0','pH25C']=np.nan
+    for variable in variable_list:
+        df_holder.loc[df_holder[variable+'_QF']!='0',variable]=np.nan
     df_holder['Type']='SOCCOM'
     df_holder = df_holder.dropna(subset=['Pressure','Date','Lat','Lon'])
     df_holder = df_holder.drop_duplicates(subset=['Cruise','Date','Pressure'])
     df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
     df_holder = df_holder.reset_index(drop=True)
-    df_holder = df_holder[['Date','Lat','Lon','Cruise','PosQC','Pressure','Temperature','Salinity','Oxygen','OxygenSat','Nitrate','pH25C']]
+    df_holder = df_holder[['Date','Lat','Lon','Cruise','PosQC','Type']+variable_list]
     return df_holder
 
-
-    #Still need to add functionality to select which data columns you want to read in
-    #Still need to link to linear interpolator to interpolate using basemap
-    #Still need to add HDF5 functionality
+df_soccom = soccom_df(soccom_proj_settings.soccom_data_directory)
+df_soccom['Cruise']=df_soccom['Cruise'].astype(str)
+df_soccom.loc[df_soccom.Lon.values<0,['Lon']] = df_soccom[df_soccom.Lon<0].Lon.values+360
+df_soccom.to_pickle(soccom_proj_settings.soccom_drifter_file)
