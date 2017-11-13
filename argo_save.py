@@ -21,11 +21,6 @@ df = df[['Cruise','Date','Temperature','Salinity','Pressure','Lat','Lon','PosQC'
 df = df[(df.PosQC==1)|(df.PosQC==8)]
 df.to_pickle(soccom_proj_settings.argo_drifter_file)
 
-df_soccom = soccom_df(soccom_proj_settings.soccom_data_directory)
-df_soccom['Cruise']=df_soccom['Cruise'].astype(str)
-df_soccom.loc[df_soccom.Lon.values<0,['Lon']] = df_soccom[df_soccom.Lon<0].Lon.values+360
-df_soccom.to_pickle(soccom_proj_settings.soccom_drifter_file)
-
 df_int = df.drop_duplicates(['Cruise','Date'])
 df_int = df_int.sort_values(['Cruise','Date']).reset_index(drop=True)
 
