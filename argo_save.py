@@ -4,7 +4,6 @@ sys.path.append(os.path.abspath("../"))
 import soccom_proj_settings
 import pandas as pd
 import datetime
-from soccom_read import soccom_df
 from argo_read import argo_df
 
 df = argo_df(soccom_proj_settings.argo_data_directory)
