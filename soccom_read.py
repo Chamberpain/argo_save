@@ -48,7 +48,7 @@ def soccom_df(data_directory):
     for variable in variable_list:
         df_holder.loc[df_holder[variable+'_QF']!='0',variable]=np.nan
     df_holder['Type']='SOCCOM'
-    df_holder = df_holder.dropna(subset=['Pressure','Date','Lat','Lon'])
+    df_holder = df_holder.dropna(subset=['Date','Lat','Lon'])
     df_holder = df_holder.drop_duplicates(subset=['Cruise','Date','Pressure'])
     df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
     df_holder = df_holder.reset_index(drop=True)
