@@ -3,11 +3,13 @@ import pandas as pd
 import jdcal
 import fnmatch
 import time
-from netCDF4 import Dataset
 import datetime
 import numpy as np
-
-
+from netCDF4 import Dataset
+sys.path.append(os.path.abspath("../"))
+import soccom_proj_settings
+import oceans
+import matplotlib.pyplot as plt
 
 debug = True
 
@@ -104,18 +106,82 @@ def traj_file_reader(file_):
     lon = nc_fid.variables['LONGITUDE'][:].tolist()
     num = nc_fid.variables['CYCLE_NUMBER'][:].tolist()
     pos_type = ''.join([x for x in nc_fid.variables['POSITIONING_SYSTEM'][:].tolist() if x is not None])
-    pos_acc = nc_fid.variables['POSITION_ACCURACY'][:].tolist()
-    date = nc_fid.variables['JULD'][:].tolist()
-    cruise = file_.split('/')[-2]
-    print nc_fid.variables['REFERENCE_DATE_TIME'][:]
+    pos_acc = nc_fid.variables['POSITION_ACCURACY'][:]
+    pos_qc = nc_fid['POSITION_QC'][:]
+    pos_acc = np.ma.array(pos_acc,mask=(pos_qc!='1'))
+
+    date = nc_fid.variables['JULD'][:]
+    date_qc = nc_fid.variables['JULD_QC'][:]
+    date = np.ma.array(date,mask=(date_qc!='1'))
+
+    cruise = ''.join([a for a in nc_fid['PLATFORM_NUMBER'][:].tolist() if a])
     ref_date = ''.join(nc_fid.variables['REFERENCE_DATE_TIME'][:].tolist())
-    ref_date = sum(jdcal.gcal2jd(ref_date[:4],ref_date[4:6],ref_date[6:8]))
-    date = [item for sublist in [time_parser(x,ref_date) for x in date] for item in sublist]
+    ref_date = datetime.datetime.strptime(ref_date,'%Y%m%d000000').date()
+    date_list = []
+    for n,day in enumerate(date):
+        try:
+            date_list.append(ref_date+datetime.timedelta(days=day))
+        except TypeError:
+            date_list.append(np.nan)
+    # date = [item for sublist in [time_parser(x,ref_date) for x in date] for item in sublist]
+    df_holder = pd.DataFrame({'Cruise':cruise,'Date':date_list,'Lon':lon,'Lat':lat,'Position Type':pos_type,'Position Accuracy':pos_acc,'Position QC':pos_qc})
+    
 
-    df_holder = pd.DataFrame({'Cruise':cruise,'Date':date,'Lon':lon,'Lat':lat,'Position Type':pos_type,'Position Accuracy':pos_acc})
+    df_holder = df_holder.dropna(subset=['Date'])
+    df_holder = df_holder[((df_holder['Position Type']=='ARGOS')&(df_holder['Position Accuracy'].isin(['1','2','3'])))|(df_holder['Position Type']=='GPS')]
     nc_fid.close()
-    return df_holder
 
+    if df_holder.empty:
+        return df_holder
+    df_holder = df_holder.dropna(subset=['Lat','Lon'])
+    df_holder = df_holder.drop_duplicates(subset=['Date'])
+    df_holder.Date = pd.to_datetime(df_holder.Date)
+
+    if  df_holder.Date.min()<pd.to_datetime(datetime.date(1996,1,1)):
+        print 'huge problem'
+        print df_holder.Date.min()
+        plt.figure()
+        plt.subplot(2,1,1)
+        df_holder.set_index('Date').Lat.plot()
+        plt.title('Latitude')
+        plt.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom='off',      # ticks along the bottom edge are off
+    top='off',         # ticks along the top edge are off
+    labelbottom='off') # labels along the bottom edge are off
+        plt.xlabel('')
+        plt.subplot(2,1,2)
+        df_holder.set_index('Date').Lon.plot()
+        plt.title('Longitude')
+        plt.savefig(cruise)
+        plt.close()
+        return pd.DataFrame()
+    if not df_holder[(df_holder['Lat'].diff().abs()/df_holder.Date.diff().dt.days>.7)|((df_holder['Lon'].diff().abs()/df_holder.Date.diff().dt.days>.7)&(df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.7))].empty:
+        # if not df_holder[(df_holder['Lat'].diff().abs()/df_holder.Date.diff().dt.days>.3)].empty:
+        #     df_holder['Lat'] = pd.rolling_median(df_holder['Lat'], window=2, center=True).fillna(method='bfill').fillna(method='ffill')
+        #     print 'I smoothed the lat'
+        # if not df_holder[((df_holder['Lon'].diff().abs()/df_holder.Date.diff().dt.days>.3)&(df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.3))].empty:
+        #     df_holder['Lon'] = pd.rolling_median(df_holder['Lon'], window=2, center=True).fillna(method='bfill').fillna(method='ffill')
+        #     print 'I smoothed the lon'
+        plt.figure()
+        plt.subplot(2,1,1)
+        df_holder.set_index('Date').Lat.plot()
+        plt.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom='off',      # ticks along the bottom edge are off
+    top='off',         # ticks along the top edge are off
+    labelbottom='off') # labels along the bottom edge are off
+        plt.xlabel('')
+        plt.title('Latitude')
+        plt.subplot(2,1,2)
+        df_holder.set_index('Date').Lon.plot()
+        plt.title('Longitude')
+        plt.savefig(cruise)
+        plt.close()
+        return pd.DataFrame()
+    return df_holder
 
 def traj_df(data_directory):
     frames = []
@@ -125,46 +191,13 @@ def traj_df(data_directory):
         for filename in fnmatch.filter(filenames, '*Rtraj.nc'):
             matches.append(os.path.join(root, filename))
     for n, match in enumerate(matches):
-        print 'file is ',match,', there are ',len(matches[:])-n,'floats left'
-        t = time.time()
-        frames.append(traj_file_reader(match))
-        print 'Building and merging datasets took ', time.time()-t 
+        try:
+            print 'file is ',match,', there are ',len(matches[:])-n,'floats left'
+            t = time.time()
+            frames.append(traj_file_reader(match))
+            print 'Building and merging datasets took ', time.time()-t 
+        except IndexError:
+            continue
     df_holder = pd.concat(frames)
     df_holder.Date = pd.to_datetime(df_holder.Date)
-    df_holder = df_holder.dropna(subset = ['Pressure'])
     return df_holder
-
-
-df = argo_df(soccom_proj_settings.argo_data_directory)
-
-###  we remove these dates because they seem to be outlyers that are not physical
-df = df[(df.Date!=datetime.date(2008,6,18))|(df.Cruise!=5901730)]
-df = df[(df.Date!=datetime.date(2011,5,22))|(df.Cruise!=5901740)]
-###############
-
-
-df[['Cruise','PosQC']] = df[['Cruise','PosQC']].astype(int)
-df.loc[df.Lon.values<0,['Lon']] = df[df.Lon<0].Lon.values+360
-df = df[['Cruise','Date','Temperature','Salinity','Pressure','Lat','Lon','PosQC']]
-df = df[(df.PosQC==1)|(df.PosQC==8)]
-df.to_pickle(soccom_proj_settings.argo_drifter_file)
-
-df_int = df.drop_duplicates(['Cruise','Date'])
-df_int = df_int.sort_values(['Cruise','Date']).reset_index(drop=True)
-
-
-for cruise in df_int.Cruise.unique():
-    mask = df_int.Cruise==cruise
-    df_int.loc[mask,'dt_interp'] = df_int[mask].PosQC==1
-    df_int.loc[mask,'dt_interp'] = df_int[mask].dt_interp.apply(lambda x: 1 if x else 0).cumsum()
-    df_holder = df_int[(df_int.PosQC==8)&(df_int.Cruise==cruise)]
-    for g in df_holder.groupby('dt_interp').groups:
-        frame = df_holder.groupby('dt_interp').get_group(g)
-        dt = (frame.Date.max()-frame.Date.min()).days+2*df_int[mask].Date.diff().mean().days
-        df_int.loc[df_int.index.isin(frame.index),'dt_interp']=dt
-df_int.loc[df_int.PosQC==1,'dt_interp']=0
-
-
-    # return plot_list
-
-df_int.to_pickle(soccom_proj_settings.interpolated_drifter_file)
