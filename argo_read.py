@@ -7,11 +7,11 @@ import datetime
 import numpy as np
 from netCDF4 import Dataset
 sys.path.append(os.path.abspath("../"))
-import soccom_proj_settings
 import oceans
 import matplotlib.pyplot as plt
 
 debug = True
+f = open('argo_df_changelog.txt','w')
 
 def time_parser(date,ref_date):
     try:
@@ -29,62 +29,96 @@ def list_multiplier(list_,col_num):
     list_ = [item for sublist in list_ for item in sublist]
     return list_
 
+
 def argo_file_reader(file_):
     nc_fid = Dataset(file_, 'r')
-    lat = nc_fid.variables['LATITUDE'][:].tolist()
-    lon = nc_fid.variables['LONGITUDE'][:].tolist()
-    pos_qc = nc_fid.variables['POSITION_QC'][:].tolist()
+    pos_type = ''.join([x for x in nc_fid.variables['POSITIONING_SYSTEM'][:][0].tolist() if x is not None])
+    cruise = ''.join([x for x in nc_fid.variables['PLATFORM_NUMBER'][:][0].tolist() if x is not None])
+    mode = nc_fid.variables['DATA_MODE'][:]
+    frames = []
+    for variable in np.unique(mode).data:
+        truth_list = mode==variable
+        if variable is 'R':
+            lat = nc_fid.variables['LATITUDE'][truth_list].tolist()
+            lon = nc_fid.variables['LONGITUDE'][truth_list].tolist()
+            pos_qc = nc_fid.variables['POSITION_QC'][truth_list].tolist()
+            date = nc_fid.variables['JULD'][truth_list].tolist()
+            date_qc = nc_fid.variables['JULD_QC'][truth_list]
+            sal = nc_fid.variables['PSAL'][truth_list,:].flatten().tolist()
+            pressure = nc_fid.variables['PRES'][truth_list,:].flatten().tolist()
+            temp = nc_fid.variables['TEMP'][truth_list,:].flatten().tolist()
 
-    # sal_qc = nc_fid.variables['']
-    date = nc_fid.variables['JULD'][:].tolist()
+            sal_error = nc_fid.variables['PSAL_ERROR'][truth_list,:].flatten().tolist()
+            pressure_error = nc_fid.variables['PRES_ERROR'][truth_list,:].flatten().tolist()
+            temp_error = nc_fid.variables['TEMP_ERROR'][truth_list,:].flatten().tolist()
+            cycle = nc_fid.variables['CYCLE_NUMBER'][truth_list].tolist()
 
-    sal = nc_fid.variables['PSAL_ADJUSTED'][:].flatten().tolist()
-    pressure = nc_fid.variables['PRES_ADJUSTED'][:].flatten().tolist()
-    temp = nc_fid.variables['TEMP_ADJUSTED'][:].flatten().tolist()
+            sal_qc = nc_fid.variables['PSAL_QC'][truth_list,:].flatten().tolist()
+            pressure_qc = nc_fid.variables['PRES_QC'][truth_list,:].flatten().tolist()
+            temp_qc = nc_fid.variables['TEMP_QC'][truth_list,:].flatten().tolist()
 
-    sal_error = nc_fid.variables['PSAL_ADJUSTED_ERROR'][:].flatten().tolist()
-    pressure_error = nc_fid.variables['PRES_ADJUSTED_ERROR'][:].flatten().tolist()
-    temp_error = nc_fid.variables['TEMP_ADJUSTED_ERROR'][:].flatten().tolist()
-        
+        else:
+            lat = nc_fid.variables['LATITUDE'][truth_list].tolist()
+            lon = nc_fid.variables['LONGITUDE'][truth_list].tolist()
+            pos_qc = nc_fid.variables['POSITION_QC'][truth_list].tolist() 
+            try:
+                date = nc_fid.variables['JULD_ADJUSTED'][truth_list].tolist()
+                date_qc = nc_fid.variables['JULD_ADJUSTED_QC'][truth_list]
+            except KeyError:
+                date = nc_fid.variables['JULD'][truth_list].tolist()
+                date_qc = nc_fid.variables['JULD_QC'][truth_list]
+            sal = nc_fid.variables['PSAL_ADJUSTED'][truth_list,:].flatten().tolist()
+            pressure = nc_fid.variables['PRES_ADJUSTED'][truth_list,:].flatten().tolist()
+            temp = nc_fid.variables['TEMP_ADJUSTED'][truth_list,:].flatten().tolist()
 
+            sal_error = nc_fid.variables['PSAL_ADJUSTED_ERROR'][truth_list,:].flatten().tolist()
+            pressure_error = nc_fid.variables['PRES_ADJUSTED_ERROR'][truth_list,:].flatten().tolist()
+            temp_error = nc_fid.variables['TEMP_ADJUSTED_ERROR'][truth_list,:].flatten().tolist()
+            try:
+                cycle = nc_fid.variables['CYCLE_NUMBER_ADJUSTED'][truth_list].tolist()
+            except KeyError:
+                cycle = nc_fid.variables['CYCLE_NUMBER'][truth_list].tolist()
+            sal_qc = nc_fid.variables['PSAL_ADJUSTED_QC'][truth_list,:].flatten().tolist()
+            pressure_qc = nc_fid.variables['PRES_ADJUSTED_QC'][truth_list,:].flatten().tolist()
+            temp_qc = nc_fid.variables['TEMP_ADJUSTED_QC'][truth_list,:].flatten().tolist()
+        dummy, col_num = nc_fid.variables['PSAL'][truth_list,:].shape
 
-    try:
-        sal_qc = nc_fid.variables['PSAL_ADJUSTED_QC'][:].flatten().tolist()
-        pressure_qc = nc_fid.variables['PRES_ADJUSTED_QC'][:].flatten().tolist()
-        temp_qc = nc_fid.variables['TEMP_ADJUSTED_QC'][:].flatten().tolist()
-    except AttributeError:
-        sal_qc = nc_fid.variables['PSAL_QC'][:].flatten().tolist()
-        pressure_qc = nc_fid.variables['PRES_QC'][:].flatten().tolist()
-        temp_qc = nc_fid.variables['TEMP_QC'][:].flatten().tolist()        
+        lat = list_multiplier(lat,col_num)
+        lon = list_multiplier(lon,col_num)
+        pos_qc =  list_multiplier(pos_qc,col_num)
+        cycle = list_multiplier(cycle,col_num)
 
+        ref_date = ''.join(nc_fid.variables['REFERENCE_DATE_TIME'][:].tolist())
+        ref_date = sum(jdcal.gcal2jd(ref_date[:4],ref_date[4:6],ref_date[6:8]))
+        date = list_multiplier([item for sublist in [time_parser(x,ref_date) for x in date] for item in sublist],col_num)
+        date_qc = list_multiplier(date_qc,col_num)
 
-    row_num, col_num = nc_fid.variables['PSAL'][:].shape
-    cruise = [file_.split('/')[-2]]*row_num*col_num
+        frames.append(pd.DataFrame({'Cycle':cycle,'Date':date,'DateQC':date_qc,'Lon':lon,'Lat':lat,
+            'Pressure':pressure,'Temperature':temp,'Salinity':sal,'PosQC':pos_qc,'PressureQC':pressure_qc,'Pressureerror':pressure_error,
+            'SalQC':sal_qc,'Salerror':sal_error,'TempQC':temp_qc,'Temperror':temp_error}))
 
-    lat = list_multiplier(lat,col_num)
-    lon = list_multiplier(lon,col_num)
-    pos_qc =  list_multiplier(pos_qc,col_num)
+    df_holder = pd.concat(frames)
 
+    df_holder['Type']=pos_type
+    df_holder['Cruise']=cruise
 
-    ref_date = ''.join(nc_fid.variables['REFERENCE_DATE_TIME'][:].tolist())
-    ref_date = sum(jdcal.gcal2jd(ref_date[:4],ref_date[4:6],ref_date[6:8]))
-    date = list_multiplier([item for sublist in [time_parser(x,ref_date) for x in date] for item in sublist],col_num)
-
-    df_holder = pd.DataFrame({'Cruise':cruise,'Date':date,'Lon':lon,'Lat':lat,'Pressure':pressure,'Temperature':temp,'Salinity':sal,'PosQC':pos_qc,'PressureQC':pressure_qc,'Pressureerror':pressure_error,'SalQC':sal_qc,'Salerror':sal_error,'TempQC':temp_qc,'Temperror':temp_error})
     df_holder = df_holder.dropna(subset = ['Date'])
-    df_holder = df_holder[(df_holder.PressureQC=='1')&(df_holder.SalQC=='1')&(df_holder.TempQC=='1')]
-    
+    df_holder = df_holder[(df_holder.PressureQC.isin(['1','2']))&(df_holder.SalQC.isin(['1','2']))&(df_holder.TempQC.isin(['1','2']))&
+    (df_holder.PosQC.isin(['1','2','8']))&(df_holder.DateQC.isin(['1','2']))]
+
     if (df_holder.Salerror.values>0.5).any()|(df_holder.Pressureerror.values>20).any()|(df_holder.Temperror.values>0.5).any():
+        # floats that are outside these parameters need to be eliminated because it is unclear what future data processing problems they may cause.
         print 'I found a float outside of error parameters'
-        mask = (df_holder.Salerror<0.1)&(df_holder.Pressureerror<15)&(df_holder.Temperror.values<0.1)
-        df_holder = df_holder[mask]
+        f.write(str(cruise[0])+' is rejected because it was found outside error parameters \n')
+        nc_fid.close()
+        return pd.DataFrame()
     nc_fid.close()
     return df_holder
 
 def argo_df(data_directory):
+
     frames = []
     matches = []
-    float_type = ['Argo']
     for root, dirnames, filenames in os.walk(data_directory):
         for filename in fnmatch.filter(filenames, '*prof.nc'):
             matches.append(os.path.join(root, filename))
@@ -95,7 +129,6 @@ def argo_df(data_directory):
         if debug:
             print 'Building and merging datasets took ', time.time()-t 
     df_holder = pd.concat(frames)
-    df_holder['Type']=float_type*len(df_holder)
     df_holder.Date = pd.to_datetime(df_holder.Date)
     df_holder = df_holder.dropna(subset = ['Pressure'])
     return df_holder
