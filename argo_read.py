@@ -157,7 +157,11 @@ def traj_file_reader(file_):
         plt.savefig(cruise)
         plt.close()
         return pd.DataFrame()
-    if not df_holder[(df_holder['Lat'].diff().abs()/df_holder.Date.diff().dt.days>.7)|((df_holder['Lon'].diff().abs()/df_holder.Date.diff().dt.days>.7)&(df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.7))].empty:
+    if (np.diff(df_holder.Lat)/df_holder.Date.diff().dt.days.values[1:]>0.7).any()|((np.diff(oceans.wrap_lon360(df_holder.Lon))/df_holder.Date.diff().dt.days.values[1:]>0.7)&(np.diff(df_holder.Lon)/df_holder.Date.diff().dt.days.values[1:]>0.7)).any():
+        'the damn float is going too fast'
+        print df_holder[(df_holder['Lat'].diff().abs()/df_holder.Date.diff().dt.days>.7)|((df_holder['Lon'].diff().abs()/df_holder.Date.diff().dt.days>.7)&(df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.7))]
+        print df_holder[df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.7]
+        print df_holder[((df_holder['Lon'].diff().abs()/df_holder.Date.diff().dt.days>.7)&(df_holder['Lon'].apply(oceans.wrap_lon180).diff().abs()/df_holder.Date.diff().dt.days>.7))]
         # if not df_holder[(df_holder['Lat'].diff().abs()/df_holder.Date.diff().dt.days>.3)].empty:
         #     df_holder['Lat'] = pd.rolling_median(df_holder['Lat'], window=2, center=True).fillna(method='bfill').fillna(method='ffill')
         #     print 'I smoothed the lat'

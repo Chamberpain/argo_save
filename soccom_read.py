@@ -40,7 +40,7 @@ def soccom_df(data_directory):
         print float_name
         frames.append(soccom_file_reader(float_name))           #pandas is orders of magnitude faster at appending then concatenating
     df_holder = pd.concat(frames)
-    df_holder = df_holder.dropna(subset=['Pressure','Date','Lat','Lon'])
+    df_holder = df_holder.dropna(subset=['Date','Lat','Lon'])
     df_holder.loc[df_holder.PosQC=='1','Lon']=np.nan
     df_holder.loc[df_holder.PosQC=='1','Lat']=np.nan
     df_holder.loc[df_holder.PosQC=='4','PosQC']=8
@@ -49,10 +49,10 @@ def soccom_df(data_directory):
         df_holder.loc[df_holder[variable+'_QF']!='0',variable]=np.nan
     df_holder['Type']='SOCCOM'
     df_holder = df_holder.dropna(subset=['Date','Lat','Lon'])
-    df_holder = df_holder.drop_duplicates(subset=['Cruise','Date','Pressure'])
     df_holder = df_holder.sort_values(['Cruise','Date','Pressure'])    #sort in a reasonable manner
     df_holder = df_holder.reset_index(drop=True)
     df_holder = df_holder[['Date','Lat','Lon','Cruise','PosQC','Type']+variable_list]
+
     return df_holder
 
 df_soccom = soccom_df(soccom_proj_settings.soccom_data_directory)
