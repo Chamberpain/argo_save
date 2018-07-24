@@ -1,4 +1,4 @@
-import sys,os
+import os
 import pandas as pd
 import jdcal
 import fnmatch
@@ -6,12 +6,10 @@ import time
 import datetime
 import numpy as np
 from netCDF4 import Dataset
-sys.path.append(os.path.abspath("../"))
 import oceans
 import matplotlib.pyplot as plt
 
 debug = True
-f = open('argo_df_changelog.txt','w')
 
 def time_parser(date,ref_date):
     try:
@@ -116,7 +114,8 @@ def argo_file_reader(file_):
     return df_holder
 
 def argo_df(data_directory):
-
+    global f
+    f = open('argo_df_changelog.txt','w')
     frames = []
     matches = []
     for root, dirnames, filenames in os.walk(data_directory):
@@ -131,6 +130,7 @@ def argo_df(data_directory):
     df_holder = pd.concat(frames)
     df_holder.Date = pd.to_datetime(df_holder.Date)
     df_holder = df_holder.dropna(subset = ['Pressure'])
+    f.close()
     return df_holder
 
 def traj_file_reader(file_):
